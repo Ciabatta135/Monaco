@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Roblox Monaco Editor with Dynamic Tabs</title>
+  <title>Roblox Monaco Editor with Tabs</title>
   <style>
     html, body {
       height: 100%;
@@ -12,67 +12,51 @@
       color: #fff;
       font-family: 'Fira Code', monospace;
     }
-
     #tabs {
       display: flex;
-      background: #111827;
-      padding: 0.5rem;
-      overflow-x: auto;
-      white-space: nowrap;
+      background: #11111b;
+      padding: 0 8px;
+      border-bottom: 1px solid #444;
     }
-
     .tab {
+      padding: 8px 12px;
+      cursor: pointer;
+      user-select: none;
+      background: transparent;
+      border: none;
+      color: #c0caf5;
       display: flex;
       align-items: center;
-      background: none;
-      border: none;
-      color: white;
-      cursor: pointer;
-      padding: 6px 12px;
-      margin-right: 4px;
-      border-bottom: 2px solid transparent;
-      position: relative;
+      border-right: 1px solid #333;
     }
-
     .tab.active {
-      border-color: #7aa2f7;
+      background: #313244;
       font-weight: bold;
     }
-
     .tab .close-btn {
       margin-left: 8px;
-      color: #aaa;
-      font-weight: bold;
+      color: #f38ba8;
       cursor: pointer;
     }
-
-    .tab .close-btn:hover {
-      color: red;
-    }
-
-    #add-tab {
+    #addTabBtn {
       background: none;
       border: none;
-      color: #7aa2f7;
-      font-size: 18px;
+      color: #89dceb;
+      font-size: 20px;
+      padding: 4px 12px;
       cursor: pointer;
-      padding: 6px 12px;
     }
-
     #container {
       width: 100%;
-      height: calc(100% - 48px); /* Subtract tab bar height */
+      height: calc(100% - 40px);
     }
   </style>
 </head>
 <body>
-  <!-- Tab Bar -->
   <div id="tabs">
-    <!-- Tabs will be inserted here dynamically -->
-    <button id="add-tab" title="Add Tab">+</button>
+    <!-- Tabs will be injected here -->
+    <button id="addTabBtn">+</button>
   </div>
-
-  <!-- Monaco Editor Container -->
   <div id="container"></div>
 
   <!-- Monaco Loader -->
@@ -81,7 +65,7 @@
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs' } });
 
     require(['vs/editor/editor.main'], function () {
-      monaco.languages.register({ id: 'lua' });
+      // Define theme
       monaco.editor.defineTheme('lua-dark', {
         base: 'vs-dark',
         inherit: true,
@@ -100,50 +84,59 @@
         }
       });
 
-      // Editor instance and model map
+      const container = document.getElementById('container');
+      const tabsContainer = document.getElementById('tabs');
+      const addTabBtn = document.getElementById('addTabBtn');
+
+      let editor = null;
       const models = {};
-      let editor;
       let tabCounter = 1;
       let currentTabId = null;
 
-      const tabsDiv = document.getElementById('tabs');
-      const addTabBtn = document.getElementById('add-tab');
+      function createTab(name, content = '') {
+        const tabId = 'tab' + tabCounter++;
+        const tabEl = document.createElement('button');
+        tabEl.className = 'tab';
+        tabEl.innerHTML = `${name} <span class="close-btn" title="Close">&#10005;</span>`;
+        tabEl.dataset.tabId = tabId;
 
-      function createTab() {
-        const tabId = `tab${tabCounter++}`;
-        const model = monaco.editor.createModel(`-- ${tabId}\nprint("New Lua tab")`, 'lua');
-        models[tabId] = model;
+        const model = monaco.editor.createModel(content, 'lua');
+        models[tabId] = { name, model };
 
-        const tabButton = document.createElement('button');
-        tabButton.className = 'tab';
-        tabButton.id = tabId + '-btn';
-        tabButton.innerHTML = `<span>${tabId}</span><span class="close-btn" onclick="closeTab(event, '${tabId}')">×</span>`;
-        tabButton.onclick = () => switchTab(tabId);
-        tabsDiv.insertBefore(tabButton, addTabBtn);
+        tabEl.addEventListener('click', (e) => {
+          if (e.target.classList.contains('close-btn')) {
+            closeTab(tabId);
+          } else {
+            switchTab(tabId);
+          }
+        });
 
+        tabsContainer.insertBefore(tabEl, addTabBtn);
         switchTab(tabId);
       }
 
       function switchTab(tabId) {
-        if (!models[tabId]) return;
+        if (currentTabId === tabId) return;
+
         currentTabId = tabId;
-        editor.setModel(models[tabId]);
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        const btn = document.getElementById(tabId + '-btn');
-        if (btn) btn.classList.add('active');
+        const tabButtons = document.querySelectorAll('.tab');
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+
+        const newTab = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+        if (newTab) newTab.classList.add('active');
+
+        const model = models[tabId].model;
+        editor.setModel(model);
       }
 
-      window.closeTab = function (e, tabId) {
-        e.stopPropagation(); // prevent triggering switch
-        if (models[tabId]) {
-          models[tabId].dispose();
-          delete models[tabId];
-        }
+      function closeTab(tabId) {
+        const model = models[tabId]?.model;
+        if (model) model.dispose();
+        delete models[tabId];
 
-        const btn = document.getElementById(tabId + '-btn');
-        if (btn) btn.remove();
+        const tabBtn = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+        if (tabBtn) tabBtn.remove();
 
-        // Switch to another open tab if current one is closed
         if (currentTabId === tabId) {
           const remainingTabs = Object.keys(models);
           if (remainingTabs.length > 0) {
@@ -153,38 +146,43 @@
             currentTabId = null;
           }
         }
-      };
+      }
 
-      addTabBtn.addEventListener('click', createTab);
+      addTabBtn.addEventListener('click', () => {
+        createTab(`Script${tabCounter}`, 'print("New Script")');
+      });
 
-      // Initialize editor
-      editor = monaco.editor.create(document.getElementById('container'), {
+      editor = monaco.editor.create(container, {
+        value: '',
+        language: 'lua',
         theme: 'lua-dark',
         fontSize: 14,
         minimap: { enabled: false }
       });
 
-      // Add initial tab
-      createTab();
+      // Create first tab
+      createTab('Script1', `print("Hello ladies and gentleman")\n\n-- Type Part. or Enum.`);
 
       // Autocomplete
       monaco.languages.registerCompletionItemProvider('lua', {
-        provideCompletionItems: () => ({
-          suggestions: [
-            { label: 'print', kind: monaco.languages.CompletionItemKind.Function, insertText: 'print(${1:text})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Outputs text to the console" },
-            { label: 'Part.Anchored', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Anchored', documentation: "Property of class Part" },
-            { label: 'Part.Size', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Size', documentation: "Property of class Part" },
-            { label: 'Part.Position', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Position', documentation: "Property of class Part" },
-            { label: 'Part.Destroy', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Part:Destroy()', documentation: "Function of class Part" },
-            { label: 'Model.PrimaryPart', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Model.PrimaryPart', documentation: "Property of class Model" },
-            { label: 'Model.SetPrimaryPartCFrame', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Model:SetPrimaryPartCFrame(${1:cframe})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Sets the model’s PrimaryPart CFrame" },
-            { label: 'Enum.Material', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Material', documentation: 'Enum value Enum.Material' },
-            { label: 'Enum.Font', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Font', documentation: 'Enum value Enum.Font' },
-            { label: 'Enum.HumanoidStateType', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.HumanoidStateType', documentation: 'Enum value Enum.HumanoidStateType' },
-            { label: 'task.spawn', kind: monaco.languages.CompletionItemKind.Function, insertText: 'task.spawn(function()\n\t$0\nend)', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Spawns a new task' },
-            { label: 'game:GetService', kind: monaco.languages.CompletionItemKind.Method, insertText: 'game:GetService("${1:ServiceName}")', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Returns a service from the game' }
-          ]
-        })
+        provideCompletionItems: () => {
+          return {
+            suggestions: [
+              { label: 'print', kind: monaco.languages.CompletionItemKind.Function, insertText: 'print(${1:text})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Outputs text to the console" },
+              { label: 'Part.Anchored', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Anchored', documentation: "Property of class Part" },
+              { label: 'Part.Size', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Size', documentation: "Property of class Part" },
+              { label: 'Part.Position', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Position', documentation: "Property of class Part" },
+              { label: 'Part.Destroy', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Part:Destroy()', documentation: "Function of class Part" },
+              { label: 'Model.PrimaryPart', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Model.PrimaryPart', documentation: "Property of class Model" },
+              { label: 'Model.SetPrimaryPartCFrame', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Model:SetPrimaryPartCFrame(${1:cframe})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Sets the model’s PrimaryPart CFrame" },
+              { label: 'Enum.Material', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Material', documentation: 'Enum value Enum.Material' },
+              { label: 'Enum.Font', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Font', documentation: 'Enum value Enum.Font' },
+              { label: 'Enum.HumanoidStateType', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.HumanoidStateType', documentation: 'Enum value Enum.HumanoidStateType' },
+              { label: 'task.spawn', kind: monaco.languages.CompletionItemKind.Function, insertText: 'task.spawn(function()\n\t$0\nend)', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Spawns a new task' },
+              { label: 'game:GetService', kind: monaco.languages.CompletionItemKind.Method, insertText: 'game:GetService("${1:ServiceName}")', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Returns a service from the game' }
+            ]
+          };
+        }
       });
     });
   </script>
