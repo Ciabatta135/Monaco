@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -107,6 +107,7 @@
     #container {
       flex-grow: 1;
       height: 0; /* so flex-grow works */
+      position: relative;
     }
 
     /* Scrollbar style for tab bar */
@@ -161,7 +162,7 @@
       const addTabBtn = document.getElementById('add-tab-btn');
       const container = document.getElementById('container');
 
-      let editors = {}; // { tabId: editorInstance }
+      let editors = {}; // { tabId: { instance, wrapper } }
       let tabContents = {}; // { tabId: text }
       let currentTabId = null;
       let tabCount = 0;
@@ -200,7 +201,7 @@
       }
 
       // Add a new tab
-      function addTab(content = `print("Hello World")\n\n-- sup`) {
+      function addTab(content = `print("Hello Roblox Developer!")\n\n-- Type Part. or Enum.`) {
         tabCount++;
         const tabId = 'tab-' + tabCount;
         tabContents[tabId] = content;
@@ -209,8 +210,18 @@
         const tabEl = createTabElement(tabId, 'Tab ' + tabCount);
         tabBar.insertBefore(tabEl, addTabBtn);
 
-        // Create Monaco editor for this tab, but don't show it yet
-        const editor = monaco.editor.create(container, {
+        // Create a wrapper div for the editor instance
+        const editorWrapper = document.createElement('div');
+        editorWrapper.style.width = '100%';
+        editorWrapper.style.height = '100%';
+        editorWrapper.style.position = 'absolute';
+        editorWrapper.style.top = '0';
+        editorWrapper.style.left = '0';
+        editorWrapper.style.display = 'none'; // hide initially
+        container.appendChild(editorWrapper);
+
+        // Create Monaco editor inside the wrapper
+        const editor = monaco.editor.create(editorWrapper, {
           value: content,
           language: 'lua',
           theme: 'lua-dark',
@@ -225,12 +236,9 @@
           renderWhitespace: 'none',
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          // Hide the editor initially by setting height 0 (we'll show active only)
-          // We'll manage visibility with CSS class and container style
         });
-        editor.getDomNode().style.display = 'none';
 
-        editors[tabId] = editor;
+        editors[tabId] = { instance: editor, wrapper: editorWrapper };
 
         switchTab(tabId);
       }
@@ -241,20 +249,20 @@
 
         // Save content of old tab before switching
         if (currentTabId && editors[currentTabId]) {
-          tabContents[currentTabId] = editors[currentTabId].getValue();
-          editors[currentTabId].getDomNode().style.display = 'none';
-          editors[currentTabId].layout(); // optional, keep layout clean
+          const { instance: oldEditor, wrapper: oldWrapper } = editors[currentTabId];
+          tabContents[currentTabId] = oldEditor.getValue();
+          oldWrapper.style.display = 'none';
           const oldTabEl = tabBar.querySelector(`.tab[data-id="${currentTabId}"]`);
           if (oldTabEl) oldTabEl.classList.remove('active');
         }
 
         // Show new tab's editor
-        const editor = editors[id];
-        if (!editor) return;
+        const editorData = editors[id];
+        if (!editorData) return;
 
-        editor.getDomNode().style.display = 'block';
-        editor.layout();
-        editor.focus();
+        editorData.wrapper.style.display = 'block';
+        editorData.instance.layout();
+        editorData.instance.focus();
 
         const newTabEl = tabBar.querySelector(`.tab[data-id="${id}"]`);
         if (newTabEl) newTabEl.classList.add('active');
@@ -266,24 +274,21 @@
       function closeTab(id) {
         if (!editors[id]) return;
 
-        // Dispose editor instance
-        editors[id].dispose();
-        delete editors[id];
+        const { instance, wrapper } = editors[id];
+        instance.dispose();
+        wrapper.remove();
 
-        // Remove tab content
+        delete editors[id];
         delete tabContents[id];
 
-        // Remove tab element
         const tabEl = tabBar.querySelector(`.tab[data-id="${id}"]`);
         if (tabEl) tabEl.remove();
 
-        // If closed tab is active, switch to another tab
         if (currentTabId === id) {
           const tabsLeft = Object.keys(editors);
           if (tabsLeft.length > 0) {
-            switchTab(tabsLeft[tabsLeft.length - 1]); // switch to last tab
+            switchTab(tabsLeft[tabsLeft.length - 1]);
           } else {
-            // No tabs left, clear editor container
             container.innerHTML = '';
             currentTabId = null;
           }
@@ -298,7 +303,7 @@
       // Initialize with one tab
       addTab();
 
-      // Roblox autocomplete provider (reuse your previous provider)
+      // Roblox autocomplete provider
       monaco.languages.registerCompletionItemProvider('lua', {
         provideCompletionItems: () => {
           return {
@@ -405,8 +410,14 @@
                 kind: monaco.languages.CompletionItemKind.Method,
                 insertText: 'game:GetService("${1:ServiceName}")',
                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                documentation: 'Returns a service from the game'
-              }
+                documentation: 'Gets a Roblox service by name'
+              },
+              {
+                label: 'game.Players',
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: 'game.Players',
+                documentation: 'Players service'
+              },
             ]
           };
         }
