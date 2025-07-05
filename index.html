@@ -1,61 +1,132 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Roblox Monaco Editor with Tabs</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
+
     html, body {
       height: 100%;
       margin: 0;
-      background: #1e1e2e;
+      background: #000000;
       color: #fff;
       font-family: 'Fira Code', monospace;
-    }
-    #tabs {
       display: flex;
-      background: #11111b;
-      padding: 0 8px;
-      border-bottom: 1px solid #444;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .tab {
-      padding: 8px 12px;
-      cursor: pointer;
-      user-select: none;
-      background: transparent;
-      border: none;
-      color: #c0caf5;
+
+    /* Tab bar container */
+    #tab-bar {
       display: flex;
       align-items: center;
-      border-right: 1px solid #333;
+      background: #000000;
+      padding: 0 8px;
+      height: 36px;
+      border-bottom: 1px solid #222a3c;
+      user-select: none;
+      overflow-x: auto;
     }
+
+    /* Individual tab */
+    .tab {
+      display: flex;
+      align-items: center;
+      padding: 6px 14px;
+      margin-right: 8px;
+      border: 12px / 30% solid;
+      border-image-slice: 1;
+      border-width: 2px;
+      border-image-source: linear-gradient(45deg, #0b6623, #76b852);
+      border-radius: 12px / 30%;
+      background: linear-gradient(180deg, #14391e 0%, #1f6e3e 100%);
+      cursor: pointer;
+      color: #c7f0c3;
+      font-weight: 600;
+      position: relative;
+      min-width: 80px;
+      white-space: nowrap;
+      transition: background 0.3s ease;
+      box-shadow: 0 0 8px rgba(30, 70, 30, 0.5);
+    }
+    /* Active tab style */
     .tab.active {
-      background: #313244;
-      font-weight: bold;
+      background: linear-gradient(180deg, #4caf50 0%, #81c784 100%);
+      color: #14391e;
+      box-shadow: 0 0 12px #81c784;
+      font-weight: 700;
     }
-    .tab .close-btn {
+    .tab:hover:not(.active) {
+      background: linear-gradient(180deg, #215622 0%, #4caf50 100%);
+      color: #c7f0c3;
+    }
+
+    /* Tab label */
+    .tab-label {
+      flex-grow: 1;
+      pointer-events: none;
+    }
+
+    /* Close button */
+    .tab-close {
       margin-left: 8px;
-      color: #f38ba8;
+      font-weight: bold;
+      color: #b3e6b3;
       cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 4px;
+      border-radius: 3px;
+      user-select: none;
+      transition: background 0.2s;
     }
-    #addTabBtn {
-      background: none;
-      border: none;
-      color: #89dceb;
-      font-size: 20px;
-      padding: 4px 12px;
+    .tab-close:hover {
+      background: #7bc97b;
+      color: #14391e;
+    }
+
+    /* Add tab button */
+    #add-tab-btn {
+      font-size: 22px;
+      font-weight: bold;
+      color: #76b852;
       cursor: pointer;
+      user-select: none;
+      padding: 0 8px;
+      transition: color 0.3s;
+      border-radius: 4px;
     }
+    #add-tab-btn:hover {
+      color: #a9e293;
+      background: rgba(118, 184, 82, 0.2);
+    }
+
+    /* Container for editor to fill remaining space */
     #container {
-      width: 100%;
-      height: calc(100% - 40px);
+      flex-grow: 1;
+      height: 0; /* so flex-grow works */
     }
+
+    /* Scrollbar style for tab bar */
+    #tab-bar::-webkit-scrollbar {
+      height: 6px;
+    }
+    #tab-bar::-webkit-scrollbar-track {
+      background: #11111b;
+    }
+    #tab-bar::-webkit-scrollbar-thumb {
+      background: #2e7d32;
+      border-radius: 3px;
+    }
+
   </style>
 </head>
 <body>
-  <div id="tabs">
+  <div id="tab-bar">
     <!-- Tabs will be injected here -->
-    <button id="addTabBtn">+</button>
+    <div id="add-tab-btn" title="Add Tab">＋</div>
   </div>
   <div id="container"></div>
 
@@ -65,126 +136,282 @@
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs' } });
 
     require(['vs/editor/editor.main'], function () {
-      // Define theme
+      monaco.languages.register({ id: 'lua' });
+
       monaco.editor.defineTheme('lua-dark', {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'keyword', foreground: 'bb9af7' },
-    { token: 'type', foreground: '7aa2f7' },
-    { token: 'operator', foreground: 'bb9af7' },
-    { token: 'number', foreground: 'ff9e64' },
-    { token: 'string', foreground: '9ece6a' },
-    { token: 'comment', foreground: '565f89' },
-    { token: 'delimiter', foreground: 'c0caf5' },
-    { token: 'identifier', foreground: 'c0caf5' }
-  ],
-  colors: {
-    'editor.background': '#000000' // 👈 Pitch black editor background
-  }
-});
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+          { token: 'keyword', foreground: 'bb9af7' },
+          { token: 'type', foreground: '7aa2f7' },
+          { token: 'operator', foreground: 'bb9af7' },
+          { token: 'number', foreground: 'ff9e64' },
+          { token: 'string', foreground: '9ece6a' },
+          { token: 'comment', foreground: '565f89' },
+          { token: 'delimiter', foreground: 'c0caf5' },
+          { token: 'identifier', foreground: 'c0caf5' }
+        ],
+        colors: {
+          'editor.background': '#000000'
+        }
+      });
 
-
+      // Variables for tabs
+      const tabBar = document.getElementById('tab-bar');
+      const addTabBtn = document.getElementById('add-tab-btn');
       const container = document.getElementById('container');
-      const tabsContainer = document.getElementById('tabs');
-      const addTabBtn = document.getElementById('addTabBtn');
 
-      let editor = null;
-      const models = {};
-      let tabCounter = 1;
+      let editors = {}; // { tabId: editorInstance }
+      let tabContents = {}; // { tabId: text }
       let currentTabId = null;
+      let tabCount = 0;
 
-      function createTab(name, content = '') {
-        const tabId = 'tab' + tabCounter++;
-        const tabEl = document.createElement('button');
-        tabEl.className = 'tab';
-        tabEl.innerHTML = `${name} <span class="close-btn" title="Close">&#10005;</span>`;
-        tabEl.dataset.tabId = tabId;
+      // Helper to create a tab element
+      function createTabElement(id, title) {
+        const tab = document.createElement('div');
+        tab.classList.add('tab');
+        tab.dataset.id = id;
 
-        const model = monaco.editor.createModel(content, 'lua');
-        models[tabId] = { name, model };
+        const label = document.createElement('div');
+        label.classList.add('tab-label');
+        label.textContent = title;
 
-        tabEl.addEventListener('click', (e) => {
-          if (e.target.classList.contains('close-btn')) {
-            closeTab(tabId);
-          } else {
-            switchTab(tabId);
-          }
+        const closeBtn = document.createElement('div');
+        closeBtn.classList.add('tab-close');
+        closeBtn.textContent = '×';
+        closeBtn.title = "Close Tab";
+
+        tab.appendChild(label);
+        tab.appendChild(closeBtn);
+
+        // Click to activate tab
+        tab.addEventListener('click', (e) => {
+          if (e.target === closeBtn) return; // ignore if clicking close button
+          switchTab(id);
         });
 
-        tabsContainer.insertBefore(tabEl, addTabBtn);
+        // Close button click
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeTab(id);
+        });
+
+        return tab;
+      }
+
+      // Add a new tab
+      function addTab(content = `print("Hello Roblox Developer!")\n\n-- Type Part. or Enum.`) {
+        tabCount++;
+        const tabId = 'tab-' + tabCount;
+        tabContents[tabId] = content;
+
+        // Create tab element and insert before add button
+        const tabEl = createTabElement(tabId, 'Tab ' + tabCount);
+        tabBar.insertBefore(tabEl, addTabBtn);
+
+        // Create Monaco editor for this tab, but don't show it yet
+        const editor = monaco.editor.create(container, {
+          value: content,
+          language: 'lua',
+          theme: 'lua-dark',
+          fontSize: 14,
+          fontLigatures: true,
+          letterSpacing: 0.5,
+          smoothScrolling: true,
+          cursorSmoothCaretAnimation: true,
+          cursorBlinking: 'smooth',
+          minimap: { enabled: false },
+          wordWrap: 'on',
+          renderWhitespace: 'none',
+          scrollBeyondLastLine: false,
+          automaticLayout: true,
+          // Hide the editor initially by setting height 0 (we'll show active only)
+          // We'll manage visibility with CSS class and container style
+        });
+        editor.getDomNode().style.display = 'none';
+
+        editors[tabId] = editor;
+
         switchTab(tabId);
       }
 
-      function switchTab(tabId) {
-        if (currentTabId === tabId) return;
+      // Switch active tab
+      function switchTab(id) {
+        if (currentTabId === id) return;
 
-        currentTabId = tabId;
-        const tabButtons = document.querySelectorAll('.tab');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
+        // Save content of old tab before switching
+        if (currentTabId && editors[currentTabId]) {
+          tabContents[currentTabId] = editors[currentTabId].getValue();
+          editors[currentTabId].getDomNode().style.display = 'none';
+          editors[currentTabId].layout(); // optional, keep layout clean
+          const oldTabEl = tabBar.querySelector(`.tab[data-id="${currentTabId}"]`);
+          if (oldTabEl) oldTabEl.classList.remove('active');
+        }
 
-        const newTab = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
-        if (newTab) newTab.classList.add('active');
+        // Show new tab's editor
+        const editor = editors[id];
+        if (!editor) return;
 
-        const model = models[tabId].model;
-        editor.setModel(model);
+        editor.getDomNode().style.display = 'block';
+        editor.layout();
+        editor.focus();
+
+        const newTabEl = tabBar.querySelector(`.tab[data-id="${id}"]`);
+        if (newTabEl) newTabEl.classList.add('active');
+
+        currentTabId = id;
       }
 
-      function closeTab(tabId) {
-        const model = models[tabId]?.model;
-        if (model) model.dispose();
-        delete models[tabId];
+      // Close a tab
+      function closeTab(id) {
+        if (!editors[id]) return;
 
-        const tabBtn = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
-        if (tabBtn) tabBtn.remove();
+        // Dispose editor instance
+        editors[id].dispose();
+        delete editors[id];
 
-        if (currentTabId === tabId) {
-          const remainingTabs = Object.keys(models);
-          if (remainingTabs.length > 0) {
-            switchTab(remainingTabs[0]);
+        // Remove tab content
+        delete tabContents[id];
+
+        // Remove tab element
+        const tabEl = tabBar.querySelector(`.tab[data-id="${id}"]`);
+        if (tabEl) tabEl.remove();
+
+        // If closed tab is active, switch to another tab
+        if (currentTabId === id) {
+          const tabsLeft = Object.keys(editors);
+          if (tabsLeft.length > 0) {
+            switchTab(tabsLeft[tabsLeft.length - 1]); // switch to last tab
           } else {
-            editor.setModel(null);
+            // No tabs left, clear editor container
+            container.innerHTML = '';
             currentTabId = null;
           }
         }
       }
 
+      // Add tab button click
       addTabBtn.addEventListener('click', () => {
-        createTab(`Script${tabCounter}`, 'print("New Script")');
+        addTab('');
       });
 
-      editor = monaco.editor.create(container, {
-        value: '',
-        language: 'lua',
-        theme: 'lua-dark',
-        fontSize: 14,
-        minimap: { enabled: false }
-      });
+      // Initialize with one tab
+      addTab();
 
-      // Create first tab
-      createTab('Script1', `print("Hello ladies and gentleman")\n\n-- Type Part. or Enum.`);
-
-      // Autocomplete
+      // Roblox autocomplete provider (reuse your previous provider)
       monaco.languages.registerCompletionItemProvider('lua', {
         provideCompletionItems: () => {
           return {
             suggestions: [
-              { label: 'print', kind: monaco.languages.CompletionItemKind.Function, insertText: 'print(${1:text})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Outputs text to the console" },
-              { label: 'Part.Anchored', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Anchored', documentation: "Property of class Part" },
-              { label: 'Part.Size', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Size', documentation: "Property of class Part" },
-              { label: 'Part.Position', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Part.Position', documentation: "Property of class Part" },
-              { label: 'Part.Destroy', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Part:Destroy()', documentation: "Function of class Part" },
-              { label: 'Model.PrimaryPart', kind: monaco.languages.CompletionItemKind.Property, insertText: 'Model.PrimaryPart', documentation: "Property of class Model" },
-              { label: 'Model.SetPrimaryPartCFrame', kind: monaco.languages.CompletionItemKind.Method, insertText: 'Model:SetPrimaryPartCFrame(${1:cframe})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: "Sets the model’s PrimaryPart CFrame" },
-              { label: 'Enum.Material', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Material', documentation: 'Enum value Enum.Material' },
-              { label: 'Enum.Font', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.Font', documentation: 'Enum value Enum.Font' },
-              { label: 'Enum.HumanoidStateType', kind: monaco.languages.CompletionItemKind.EnumMember, insertText: 'Enum.HumanoidStateType', documentation: 'Enum value Enum.HumanoidStateType' },
-              { label: 'task.spawn', kind: monaco.languages.CompletionItemKind.Function, insertText: 'task.spawn(function()\n\t$0\nend)', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Spawns a new task' },
-              { label: 'game:GetService', kind: monaco.languages.CompletionItemKind.Method, insertText: 'game:GetService("${1:ServiceName}")', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, documentation: 'Returns a service from the game' }
+              {
+                label: 'print',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'print(${1:text})',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Outputs text to the console"
+              },
+              {
+                label: 'local',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'local',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Outputs text to the console"
+              },
+              {
+                label: 'game',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'game',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Outputs text to the console"
+              },
+              {
+                label: 'Parent',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'Parent',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Outputs text to the console"
+              },
+              {
+                label: 'printidentity()',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'printidentity()',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Outputs text to the console"
+              },
+              {
+                label: 'Part.Anchored',
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: 'Part.Anchored',
+                documentation: "Property of class Part"
+              },
+              {
+                label: 'Part.Size',
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: 'Part.Size',
+                documentation: "Property of class Part"
+              },
+              {
+                label: 'Part.Position',
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: 'Part.Position',
+                documentation: "Property of class Part"
+              },
+              {
+                label: 'Part.Destroy',
+                kind: monaco.languages.CompletionItemKind.Method,
+                insertText: 'Part:Destroy()',
+                documentation: "Function of class Part"
+              },
+              {
+                label: 'Model.PrimaryPart',
+                kind: monaco.languages.CompletionItemKind.Property,
+                insertText: 'Model.PrimaryPart',
+                documentation: "Property of class Model"
+              },
+              {
+                label: 'Model.SetPrimaryPartCFrame',
+                kind: monaco.languages.CompletionItemKind.Method,
+                insertText: 'Model:SetPrimaryPartCFrame(${1:cframe})',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: "Sets the model’s PrimaryPart CFrame"
+              },
+              {
+                label: 'Enum.Material',
+                kind: monaco.languages.CompletionItemKind.EnumMember,
+                insertText: 'Enum.Material',
+                documentation: 'Enum value Enum.Material'
+              },
+              {
+                label: 'Enum.Font',
+                kind: monaco.languages.CompletionItemKind.EnumMember,
+                insertText: 'Enum.Font',
+                documentation: 'Enum value Enum.Font'
+              },
+              {
+                label: 'Enum.HumanoidStateType',
+                kind: monaco.languages.CompletionItemKind.EnumMember,
+                insertText: 'Enum.HumanoidStateType',
+                documentation: 'Enum value Enum.HumanoidStateType'
+              },
+              {
+                label: 'task.spawn',
+                kind: monaco.languages.CompletionItemKind.Function,
+                insertText: 'task.spawn(function()\n\t$0\nend)',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: 'Spawns a new task'
+              },
+              {
+                label: 'game:GetService',
+                kind: monaco.languages.CompletionItemKind.Method,
+                insertText: 'game:GetService("${1:ServiceName}")',
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: 'Returns a service from the game'
+              }
             ]
           };
         }
       });
+
     });
   </script>
 </body>
